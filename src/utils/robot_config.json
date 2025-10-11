@@ -44,5 +44,12 @@
   "calib_file": "/home/daniel/Documents/robot_testing/calib.json",
   "rotation_scaling": 1.0,
   "rotation_scaling_90": 1.0,
-  "rotation_scaling_180": 1.09
+  "rotation_scaling_180": 1.09,
+  "defined_route_front_target_mm": 1000.0,
+  "lidar_stream": {
+    "enabled": true,
+    "port": 5051,
+    "host": "0.0.0.0",
+    "hz": 12.0
+  }
 }

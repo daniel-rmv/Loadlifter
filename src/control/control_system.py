@@ -14,9 +14,11 @@ from ..high_level.lidar_system import LiDARSystem
 from ..high_level.buzzer_system import BuzzerSystem
 from ..high_level.arm_system import ArmSystem
 from ..high_level.camera_system import CameraSystem
+from ..high_level.lidar_stream_system import LidarStreamSystem
 from .modes.remote import run as run_remote_mode
 from .modes.follow_wall import run as run_follow_wall
 from .modes.follow_route import run as run_follow_route
+from .modes.defined_route_getobjecttop import run as run_defined_route_getobjecttop
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_CONFIG_PATH = os.path.normpath(os.path.join(BASE_DIR, "..", "utils", "robot_config.json"))
@@ -146,6 +148,7 @@ def main():
     ap.add_argument("--remote", action="store_true")
     ap.add_argument("--follow_wall", action="store_true")
     ap.add_argument("--follow_route", action="store_true")
+    ap.add_argument("--defined_route_getobjecttop", action="store_true")
     ap.add_argument("--camera_stream", action="store_true")
     ap.add_argument("--mode", choices=["remote","follow_wall","beep"], default=None)
 
@@ -309,6 +312,7 @@ def main():
     if args.remote: mode = "remote"
     elif args.follow_wall: mode = "follow_wall"
     elif args.follow_route: mode = "follow_route"
+    elif args.defined_route_getobjecttop: mode = "defined_route_getobjecttop"
     elif args.camera_stream: mode = "camera_stream"
     else: mode = args.mode
 
@@ -380,7 +384,7 @@ def main():
             camera_sys.stop()
         return
 
-    elif mode in ("follow_wall", "follow_route"):
+    elif mode in ("follow_wall", "follow_route", "defined_route_getobjecttop"):
         motors = MotorSystem()
         drv   = MS200Driver()
         lidar = LiDARSystem(drv)
@@ -388,17 +392,37 @@ def main():
         drv.start(); time.sleep(0.4)
 
         nav = NavigationSystem(motors, lidar, cfg=cfg)
+        lidar_stream_cfg = cfg.get("lidar_stream", {}) if isinstance(cfg.get("lidar_stream"), dict) else {}
+        lidar_stream = None
+        try:
+            if bool(lidar_stream_cfg.get("enabled", True)):
+                lidar_stream = LidarStreamSystem(
+                    lidar,
+                    port=lidar_stream_cfg.get("port", 5051),
+                    host=lidar_stream_cfg.get("host", "0.0.0.0"),
+                    hz=lidar_stream_cfg.get("hz", 12.0),
+                )
+                lidar_stream.start(background=True)
+        except Exception as exc:
+            print(f"[WARN] LiDAR stream failed to start: {exc}")
         try:
             buzzer.on(); time.sleep(cfg.get("buzzer_start_s", 3.0)); buzzer.off()
 
             if mode == "follow_wall":
                 run_follow_wall(nav, cfg, buzzer, drv)
-            else:
+            elif mode == "follow_route":
                 run_follow_route(nav, cfg, buzzer, drv)
+            else:
+                run_defined_route_getobjecttop(nav, cfg, buzzer, drv)
 
         except KeyboardInterrupt:
             pass
         finally:
+            if lidar_stream:
+                try:
+                    lidar_stream.stop()
+                except Exception:
+                    pass
             try: nav.shutdown()
             except Exception: pass
             try: motors.stop()

@@ -71,9 +71,9 @@ class NavigationSystem:
         self.buzzer_end_s   = float(self.cfg.get("buzzer_end_s", 3.0))
 
         # Channel alignment tuning (optional)
-        self.channel_center_tol_mm        = float(self.cfg.get("channel_center_tol_mm", 15.0))
-        self.channel_front_center_tol_mm  = float(self.cfg.get("channel_front_center_tol_mm", 20.0))
-        self.channel_orientation_tol_deg  = float(self.cfg.get("channel_orientation_tol_deg", 2.0))
+        self.channel_center_tol_mm        = float(self.cfg.get("channel_center_tol_mm", 25.0))
+        self.channel_front_center_tol_mm  = float(self.cfg.get("channel_front_center_tol_mm", 25.0))
+        self.channel_orientation_tol_deg  = float(self.cfg.get("channel_orientation_tol_deg", 2.5))
         self.channel_align_max_iter       = int(self.cfg.get("channel_align_max_iter", 8))
         self.channel_front_max_mm         = float(self.cfg.get("channel_front_max_mm", 3000.0))
         self.channel_front_min_points     = int(self.cfg.get("channel_front_min_points", 15))
@@ -94,7 +94,7 @@ class NavigationSystem:
         self.channel_orientation_improve_tol_deg = float(self.cfg.get("channel_orientation_improve_tol_deg", 0.15))
         self.channel_strafe_max_steps     = int(self.cfg.get("channel_strafe_max_steps", 8))
         self.channel_strafe_stall_limit   = int(self.cfg.get("channel_strafe_stall_limit", 4))
-        self.channel_strafe_improve_tol_mm = float(self.cfg.get("channel_strafe_improve_tol_mm", 2.0))
+        self.channel_strafe_improve_tol_mm = float(self.cfg.get("channel_strafe_improve_tol_mm", 3.0))
 
     # ---------- Utility ----------
     def hard_zero(self, repeats=5, sleep_s=0.05):
@@ -627,6 +627,85 @@ class NavigationSystem:
     def channel_align_and_forward(self, front_thresh_mm=540.0, expect_front_wall=True):
         self.align_storage_channel(expect_front_wall=expect_front_wall)
         self.straight_forward_until_front(front_thresh_mm=front_thresh_mm)
+
+    def move_to_front_distance(self, target_mm, tolerance_mm=15.0, max_iters=80, speed_mm_s=None,
+                               maintain_center=False, expect_front_wall=True):
+        target_mm = float(target_mm)
+        tolerance_mm = max(1.0, float(tolerance_mm))
+        base_speed = abs(float(speed_mm_s)) if speed_mm_s is not None else abs(self.forward)
+        print(YELLOW + f"[ALIGN] Adjusting front distance to {target_mm:.0f}±{tolerance_mm:.0f}mm" + RESET)
+        if maintain_center:
+            self.align_storage_channel(expect_front_wall=expect_front_wall)
+        val = None
+        error = None
+        for _ in range(int(max_iters)):
+            val = self.read_front_mm()
+            if val is None:
+                print(RED + "[WARN] LiDAR returned no front distance during adjustment" + RESET)
+                time.sleep(0.1)
+                continue
+            error = val - target_mm
+            if abs(error) <= tolerance_mm:
+                break
+            direction = 1 if error > 0 else -1
+            move_speed = base_speed
+            duration = max(0.02, min(0.45, abs(error) / max(120.0, move_speed)))
+            if direction > 0:
+                if hasattr(self.motors, "drive"):
+                    self.motors.drive(forward_mm_s=move_speed, yaw_pulses=0)
+                else:
+                    self.motors.drive_full(forward_mm_s=move_speed, strafe_pulses=0, yaw_pulses=0)
+            else:
+                if hasattr(self.motors, "drive"):
+                    self.motors.drive(forward_mm_s=-move_speed, yaw_pulses=0)
+                else:
+                    self.motors.drive_full(forward_mm_s=-move_speed, strafe_pulses=0, yaw_pulses=0)
+            time.sleep(duration)
+            self.hard_zero()
+            if maintain_center:
+                self.align_storage_channel(expect_front_wall=expect_front_wall)
+        else:
+            print(RED + "[WARN] Front distance coarse adjustment did not converge" + RESET)
+            return False
+
+        self.hard_zero()
+        time.sleep(0.08)
+        val = self.read_front_mm()
+        if val is not None and abs(val - target_mm) <= tolerance_mm:
+            print(GREEN + f"[ALIGN] Front distance reached ({val:.0f}mm)" + RESET)
+            return True
+
+        print(YELLOW + "[ALIGN] Fine front distance tuning" + RESET)
+        for _ in range(16):
+            val = self.read_front_mm()
+            if val is None:
+                time.sleep(0.1)
+                continue
+            error = val - target_mm
+            if abs(error) <= tolerance_mm:
+                self.hard_zero()
+                print(GREEN + f"[ALIGN] Front distance reached ({val:.0f}mm)" + RESET)
+                return True
+            move_speed = base_speed
+            duration = max(0.02, min(0.25, abs(error) / max(100.0, move_speed)))
+            if error > 0:
+                if hasattr(self.motors, "drive"):
+                    self.motors.drive(forward_mm_s=move_speed, yaw_pulses=0)
+                else:
+                    self.motors.drive_full(forward_mm_s=move_speed, strafe_pulses=0, yaw_pulses=0)
+            else:
+                if hasattr(self.motors, "drive"):
+                    self.motors.drive(forward_mm_s=-move_speed, yaw_pulses=0)
+                else:
+                    self.motors.drive_full(forward_mm_s=-move_speed, strafe_pulses=0, yaw_pulses=0)
+            time.sleep(duration)
+            self.hard_zero()
+            time.sleep(0.05)
+            if maintain_center:
+                self.align_storage_channel(expect_front_wall=expect_front_wall)
+
+        print(RED + f"[WARN] Front distance adjustment incomplete (last error={error:.0f}mm)" + RESET)
+        return False
 
     def wait_for_valid_scan(self, axes=("front",), timeout_s=1.0) -> bool:
         """Block until requested LiDAR axes report values or the timeout elapses."""
