@@ -28,7 +28,7 @@ class NavigationSystem:
                 raise ValueError(f"NavigationSystem cfg missing key: {key}")
             return self.cfg[key]
 
-        # --- Pflichtwerte laden ---
+        # --- Required configuration values ---
         self.left_target = float(need("left_target_mm"))
         self.front_stop  = float(need("front_stop_mm"))
         self.forward     = float(need("forward_mm_s"))
@@ -63,10 +63,10 @@ class NavigationSystem:
         self.side_rejoin_front_mm       = float(need("side_rejoin_front_mm"))
         self.side_final_forward_s       = float(need("side_final_forward_s"))
         self.right_open_require_rearm   = bool(need("right_open_require_rearm"))
-        # rearm_mm darf fehlen → None, ist optional
+        # rearm_mm is optional; defaults to None
         self.right_open_rearm_mm        = self.cfg.get("right_open_rearm_mm", None)
 
-        # Buzzer-Zeiten optional
+        # Optional buzzer timings
         self.buzzer_start_s = float(self.cfg.get("buzzer_start_s", 3.0))
         self.buzzer_end_s   = float(self.cfg.get("buzzer_end_s", 3.0))
 
@@ -195,7 +195,7 @@ class NavigationSystem:
                 self.motors.drive_full(forward_mm_s=fwd, strafe_pulses=0, yaw_pulses=yaw)
             time.sleep(0.05)
 
-    # ---------- LEFT until right-open OR front-stop (mit optionalem Re-Arm) ----------
+    # ---------- LEFT until right-open OR front-stop (with optional re-arm) ----------
     def follow_left_until_right_open_or_front(self, right_open_mm=None,
                                               require_rearm=None, rearm_below_mm=None):
         right_open_mm = float(right_open_mm if right_open_mm is not None else self.right_open_mm)
@@ -315,13 +315,13 @@ class NavigationSystem:
             return None
 
     def _rotate_signed(self, target_deg=90.0, left_positive=True):
-        # Dreh-Geschwindigkeit evtl. aus calib JSON (falls vorhanden), sonst benutzen wir nur Pulswerte/Zeiten.
+        # Rotation speed may come from calibration JSON; otherwise fall back to pulse/time heuristics.
         data = self._load_turn_json()
         dps_fast = dps_slow = None
         brake_deg = 0.0
 
         if data and "deg_per_s" in data and "left" in data["deg_per_s"]:
-            # Wir lesen nur, wenn vorhanden – sonst bleiben dps_* = None
+            # Only read calibrated dps_* values when available; otherwise leave them as None
             try:
                 dps_fast = float(data["deg_per_s"]["left"].get(str(abs(self.yaw_fast)), 0.0) or 0.0)
                 dps_slow = float(data["deg_per_s"]["left"].get(str(abs(self.yaw_slow)), 0.0) or 0.0)
@@ -335,7 +335,7 @@ class NavigationSystem:
                 except Exception:
                     pass
 
-        # Wenn keine dps kalibriert sind, verteilen wir einfach die ratio in Zeiten relativ (ohne Absolut-DPS).
+        # If no dps values are calibrated, distribute the ratio using relative timings (no absolute DPS).
         # No hard defaults for dps_*; use loops with short slices and total time via forward/ratio
         base_scale = self.rotation_scaling if self.rotation_scaling > 0 else 1.0
         abs_target = abs(float(target_deg))
@@ -352,7 +352,7 @@ class NavigationSystem:
         # If no dps_* values are given we approximate via fixed step time windows
         # total duration proportional to target_eff (heuristic) so rotation actually occurs
         if not dps_fast or not dps_slow:
-            total_s = 0.012 * target_eff  # 12ms pro Grad als heuristische Basis (passt du in Config via ratio etc. an)
+            total_s = 0.012 * target_eff  # 12ms per degree as a heuristic baseline (tune via config ratios)
             t_fast = total_s * fast_ratio
             t_slow = total_s * slow_ratio
         else:
@@ -399,7 +399,7 @@ class NavigationSystem:
                 self.motors.drive_full(0.0, 0, yaw_slow)
             time.sleep(0.01)
 
-        # Gegenbremse
+        # Counter braking
         if self.brake_opp != 0 and self.brake_time > 0:
             if hasattr(self.motors, "brake_yaw"):
                 self.motors.brake_yaw(opposite_pulses=brake_opp, duration=self.brake_time)

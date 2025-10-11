@@ -75,6 +75,10 @@ ARM_ACTIONS = [
     {"module": "home", "check": lambda a: bool(a.arm_home), "kwargs": lambda a: {}},
     {"module": "set_home", "check": lambda a: bool(a.arm_set_home), "kwargs": lambda a: {}},
     {"module": "clear_home", "check": lambda a: bool(a.arm_clear_home), "kwargs": lambda a: {}},
+    {"module": "arm_ready", "check": lambda a: bool(getattr(a, "arm_ready", False)), "kwargs": lambda a: {}},
+    {"module": "arm_ready_front", "check": lambda a: bool(getattr(a, "arm_ready_front", False)), "kwargs": lambda a: {}},
+    {"module": "arm_ready_left", "check": lambda a: bool(getattr(a, "arm_ready_left", False)), "kwargs": lambda a: {}},
+    {"module": "arm_ready_right", "check": lambda a: bool(getattr(a, "arm_ready_right", False)), "kwargs": lambda a: {}},
     {"module": "calibrate", "check": lambda a: bool(getattr(a, "arm_calibrate", False)), "kwargs": lambda a: {}},
     {"module": "pickup", "check": lambda a: bool(getattr(a, "arm_pickup", False)), "kwargs": lambda a: {}},
     {"module": "arm_getobject_floor_front_right", "check": lambda a: bool(getattr(a, "arm_getobject_floor_front_right", False)), "kwargs": lambda a: {}},
@@ -83,6 +87,15 @@ ARM_ACTIONS = [
     {"module": "arm_getobject_floor_left_front", "check": lambda a: bool(getattr(a, "arm_getobject_floor_left_front", False)), "kwargs": lambda a: {}},
     {"module": "arm_getobject_floor_right_left", "check": lambda a: bool(getattr(a, "arm_getobject_floor_right_left", False)), "kwargs": lambda a: {}},
     {"module": "arm_getobject_floor_left_right", "check": lambda a: bool(getattr(a, "arm_getobject_floor_left_right", False)), "kwargs": lambda a: {}},
+    {"module": "arm_getobjecttop_front", "check": lambda a: bool(getattr(a, "arm_getobjecttop_front", False)), "kwargs": lambda a: {}},
+    {"module": "arm_getobjecttop_left", "check": lambda a: bool(getattr(a, "arm_getobjecttop_left", False)), "kwargs": lambda a: {}},
+    {"module": "arm_getobjecttop_right", "check": lambda a: bool(getattr(a, "arm_getobjecttop_right", False)), "kwargs": lambda a: {}},
+    {"module": "arm_getobjecttop_front_right", "check": lambda a: bool(getattr(a, "arm_getobjecttop_front_right", False)), "kwargs": lambda a: {}},
+    {"module": "arm_getobjecttop_right_front", "check": lambda a: bool(getattr(a, "arm_getobjecttop_right_front", False)), "kwargs": lambda a: {}},
+    {"module": "arm_getobjecttop_front_left", "check": lambda a: bool(getattr(a, "arm_getobjecttop_front_left", False)), "kwargs": lambda a: {}},
+    {"module": "arm_getobjecttop_left_front", "check": lambda a: bool(getattr(a, "arm_getobjecttop_left_front", False)), "kwargs": lambda a: {}},
+    {"module": "arm_getobjecttop_right_left", "check": lambda a: bool(getattr(a, "arm_getobjecttop_right_left", False)), "kwargs": lambda a: {}},
+    {"module": "arm_getobjecttop_left_right", "check": lambda a: bool(getattr(a, "arm_getobjecttop_left_right", False)), "kwargs": lambda a: {}},
     {"module": "grip_object", "check": lambda a: bool(getattr(a, "arm_grip_object", False)), "kwargs": lambda a: {}},
     {"module": "gripper_open", "check": lambda a: bool(a.arm_gripper_open), "kwargs": lambda a: {}},
     {"module": "gripper_close", "check": lambda a: bool(a.arm_gripper_close), "kwargs": lambda a: {}},
@@ -149,6 +162,10 @@ def main():
     ap.add_argument("--arm_list_poses", action="store_true")
     ap.add_argument("--arm_apply_posture", type=str)
     ap.add_argument("--arm_pose", type=str)  # Alias (compatibility)
+    ap.add_argument("--arm_ready", action="store_true")
+    ap.add_argument("--arm_ready_front", action="store_true")
+    ap.add_argument("--arm_ready_left", action="store_true")
+    ap.add_argument("--arm_ready_right", action="store_true")
     ap.add_argument("--arm_calibrate", action="store_true")
     ap.add_argument("--arm_pickup", action="store_true")
     ap.add_argument("--arm_getobject_floor_front_right", action="store_true")
@@ -157,6 +174,15 @@ def main():
     ap.add_argument("--arm_getobject_floor_left_front", action="store_true")
     ap.add_argument("--arm_getobject_floor_right_left", action="store_true")
     ap.add_argument("--arm_getobject_floor_left_right", action="store_true")
+    ap.add_argument("--arm_getobjecttop_front", action="store_true")
+    ap.add_argument("--arm_getobjecttop_left", action="store_true")
+    ap.add_argument("--arm_getobjecttop_right", action="store_true")
+    ap.add_argument("--arm_getobjecttop_front_right", action="store_true")
+    ap.add_argument("--arm_getobjecttop_right_front", action="store_true")
+    ap.add_argument("--arm_getobjecttop_front_left", action="store_true")
+    ap.add_argument("--arm_getobjecttop_left_front", action="store_true")
+    ap.add_argument("--arm_getobjecttop_right_left", action="store_true")
+    ap.add_argument("--arm_getobjecttop_left_right", action="store_true")
     ap.add_argument("--arm_grip_object", action="store_true")
 
     # Gripper

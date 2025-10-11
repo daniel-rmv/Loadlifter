@@ -196,7 +196,7 @@ def run_stream_server(
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument("--source", default="0", help="0=USB Cam, sonst Pfad/URL")
+    p.add_argument("--source", default="0", help="0=USB camera, otherwise path/URL")
     p.add_argument("--port", type=int, default=5000)
     p.add_argument("--quality", type=int, default=70)
     p.add_argument("--outw", type=int, default=960)

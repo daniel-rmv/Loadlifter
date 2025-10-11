@@ -220,6 +220,38 @@ class ArmSystem:
         pmin, pmax = BASE_RIGHT_MAX_PULSE, BASE_LEFT_MAX_PULSE
         self.move_joint_pulse('base', int(pmin + (pmax - pmin) * (percent / 100.0)), duration_ms)
 
+    # --- Ready posture helpers ---
+    def _apply_ready_pose(self, base_fn, base_duration_ms=BASE_DURATION_MS, joint_duration_ms=DEFAULT_DURATION_MS):
+        """Move the arm into a ready posture with predefined joint percentages."""
+        if base_fn is not None:
+            base_fn(duration_ms=base_duration_ms)
+        self.shoulder_percent(100.0, duration_ms=joint_duration_ms)
+        self.elbow_percent(85.0, duration_ms=joint_duration_ms)
+        self.pitch_percent(5.0, duration_ms=joint_duration_ms)
+
+    def ready(self, duration_ms=DEFAULT_DURATION_MS, base_duration_ms=BASE_DURATION_MS):
+        """Alias for ready_front to keep CLI flag intuitive."""
+        self.ready_front(duration_ms=duration_ms, base_duration_ms=base_duration_ms)
+
+    def ready_front(self, duration_ms=DEFAULT_DURATION_MS, base_duration_ms=BASE_DURATION_MS):
+        """Ready posture facing forward (base centered)."""
+        self._apply_ready_pose(self.base_zero, base_duration_ms=base_duration_ms, joint_duration_ms=duration_ms)
+
+    def ready_left(self, duration_ms=DEFAULT_DURATION_MS, base_duration_ms=BASE_DURATION_MS):
+        """Ready posture with the base rotated 90° to the left."""
+        self._apply_ready_pose(self.base_left_90, base_duration_ms=base_duration_ms, joint_duration_ms=duration_ms)
+
+    def ready_right(self, duration_ms=DEFAULT_DURATION_MS, base_duration_ms=BASE_DURATION_MS):
+        """Ready posture with the base rotated 90° to the right."""
+        self._apply_ready_pose(self.base_right_90, base_duration_ms=base_duration_ms, joint_duration_ms=duration_ms)
+
+    # --- Top-pick helpers ---
+    def move_top_pick_pose(self, shoulder_percent=48.0, elbow_percent=86.0, pitch_percent=52.0, duration_ms=DEFAULT_DURATION_MS):
+        """Move joints to the empirically tuned top pick pose."""
+        self.shoulder_percent(shoulder_percent, duration_ms=duration_ms)
+        self.elbow_percent(elbow_percent, duration_ms=duration_ms)
+        self.pitch_percent(pitch_percent, duration_ms=duration_ms)
+
     # >>> fehlten bei dir: jetzt vorhanden
     def elbow_up(self, deg, duration_ms=DEFAULT_DURATION_MS):      self._rel_move_joint_deg('elbow',     +abs(deg), duration_ms)
     def elbow_down(self, deg, duration_ms=DEFAULT_DURATION_MS):    self._rel_move_joint_deg('elbow',     -abs(deg), duration_ms)
