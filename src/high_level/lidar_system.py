@@ -85,14 +85,14 @@ class LiDARSystem:
         return self._distance_window(0.0, span_deg=span_deg, mode=mode)
 
     # ---------- Orientation helpers (wall alignment) ----------
-    # Left side: 168° (rear), 192° (front) – small windows, using min for outlier robustness
+    # Left side: 168 deg (rear), 192 deg (front) - small windows, using min for outlier robustness
     def left_back_mm(self, span_deg=6.0):
         return self._distance_window(168.0, span_deg=span_deg, mode="min")
 
     def left_front_mm(self, span_deg=6.0):
         return self._distance_window(192.0, span_deg=span_deg, mode="min")
 
-    # Right side: 12° (rear), 348° (front)
+    # Right side: 12 deg (rear), 348 deg (front)
     def right_back_mm(self, span_deg=6.0):
         return self._distance_window(12.0, span_deg=span_deg, mode="min")
 

@@ -12,7 +12,7 @@ from typing import Optional
 
 try:
     import RPi.GPIO as _GPIO  # type: ignore
-except Exception:  # pragma: no cover – RPi.GPIO is usually not present locally
+except Exception:  # pragma: no cover - RPi.GPIO is usually not present locally
     _GPIO = None
 
 

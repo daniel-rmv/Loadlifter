@@ -166,22 +166,22 @@ class NavigationSystem:
 
     # ---------- Orientation terms ----------
     def _yaw_from_orientation_left(self):
-        db = self.lidar.left_back_mm(span_deg=6.0)   # 168°
-        df = self.lidar.left_front_mm(span_deg=6.0)  # 192°
+        db = self.lidar.left_back_mm(span_deg=6.0)   # 168 deg
+        df = self.lidar.left_front_mm(span_deg=6.0)  # 192 deg
         if db is None or df is None: return 0
         diff = df - db
         yaw = int(diff * self.Kp_orient)
         return _clamp(yaw, -self.MAX_YAW, self.MAX_YAW)
 
     def _yaw_from_orientation_right(self):
-        db = self.lidar.right_back_mm(span_deg=6.0)   # 12°
-        df = self.lidar.right_front_mm(span_deg=6.0)  # 348°
+        db = self.lidar.right_back_mm(span_deg=6.0)   # 12 deg
+        df = self.lidar.right_front_mm(span_deg=6.0)  # 348 deg
         if db is None or df is None: return 0
         diff = df - db
         yaw = -int(diff * self.Kp_orient)
         return _clamp(yaw, -self.MAX_YAW, self.MAX_YAW)
 
-    # ---------- Error → Yaw ----------
+    # ---------- Error to yaw ----------
     def _yaw_from_error_left(self, err_mm):
         if abs(err_mm) <= self.TOL_MM: return 0
         mag = int(abs(err_mm) * self.Kp_err)

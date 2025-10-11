@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# lidar_test.py
+# test_lidar.py
 # Reads frames, parses angle/distance/intensity, checks CRC, prints the first few points.
 # Author: Daniel Würmli
 
@@ -8,8 +8,8 @@ import struct
 import time
 from collections import deque
 
-PORT = "/dev/ttyUSB0"   # USB serial device 
-BAUD = 230400           # baudrate
+PORT = "/dev/ttyUSB0"   # USB serial device
+BAUD = 230400           # Baud rate
 TIMEOUT = 0.05
 
 # CRC8 table copied from the original C++ driver (same ordering)

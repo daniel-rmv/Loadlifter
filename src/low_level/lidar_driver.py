@@ -76,7 +76,7 @@ class MS200Driver:
     def _run(self):
         self._ser = serial.Serial(self.port, self.baud, timeout=self.timeout)
         try:
-            # stabilisieren
+            # Allow the serial interface to stabilise
             self._ser.dtr = False
             self._ser.rts = False
             time.sleep(0.05)
@@ -121,9 +121,9 @@ class MS200Driver:
         with self._lock:
             return list(self._points)
 
-# -------- High-Level Winkelfunktionen (nur lesen, keine Hardwarelogik) -----
+# -------- High-level angle helpers (read-only, no hardware logic) -----
 class LidarHL:
-    """0°=rechts, 270°=vorne, 180°=links"""
+    """Angle reference: 0 deg = right, 270 deg = front, 180 deg = left."""
     def __init__(self, drv: MS200Driver):
         self.drv = drv
 

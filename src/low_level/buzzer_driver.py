@@ -36,13 +36,13 @@ class BuzzerDriver:
         self._gpiod_chip = None
         self._gpiod_line = None
 
-        # Backends der Reihe nach probieren
+        # Try each backend in order of preference
         if self.backend in ("auto", "sdk"):
             self._try_init_sdk()
         if not self.ok and self.backend in ("auto", "demo"):
             self._try_init_demo()
         if not self.ok and self.backend in ("auto", "gpio", "GPIO", "Gpio"):
-            # Erst RPi.GPIO, dann gpiod – beides "gpio"-Backend
+            # Prefer RPi.GPIO, fall back to gpiod - both implement the GPIO backend
             self._try_init_rpigpio()
             if not self.ok:
                 self._try_init_gpiod()
@@ -89,7 +89,7 @@ class BuzzerDriver:
         self.ok = True
         print(f"[BuzzerDriver] SDK backend active: {self.mode}")
 
-    # ---------- Demo-Modul ----------
+    # ---------- Demo module ----------
     def _try_init_demo(self):
         try:
             import buzzer_control_demo as bcd
@@ -110,7 +110,7 @@ class BuzzerDriver:
         try:
             import RPi.GPIO as GPIO
         except Exception:
-            return  # no RPi.GPIO available – trying gpiod next
+            return  # no RPi.GPIO available - trying gpiod next
 
         if self.gpio_pin is None:
             print("[BuzzerDriver] GPIO pin not configured (--buzzer_pin).")
@@ -129,7 +129,7 @@ class BuzzerDriver:
                 self.mode = "gpio"
 
             self.ok = True
-            print(f"[BuzzerDriver] GPIO (RPi.GPIO) aktiv: BCM pin={self.gpio_pin} active={'HIGH' if self.gpio_active_high else 'LOW'} pwm_hz={self.pwm_hz}")
+            print(f"[BuzzerDriver] GPIO (RPi.GPIO) active: BCM pin={self.gpio_pin} active={'HIGH' if self.gpio_active_high else 'LOW'} pwm_hz={self.pwm_hz}")
         except Exception as e:
             print("[BuzzerDriver] RPi.GPIO initialisation error:", e)
             self._GPIO = None
@@ -151,7 +151,7 @@ class BuzzerDriver:
             chipname = "gpiochip0"
             chip = gpiod.Chip(chipname)
             line = chip.get_line(int(self.gpio_pin))
-            # Standard: Ausgang, Startpegel = inaktiv
+            # Default: output mode with the initial level set to the inactive state
             default_val = 1 if (False == self.gpio_active_high) else 0
             line.request(consumer="buzzer", type=gpiod.LINE_REQ_DIR_OUT, default_val=default_val)
             self._gpiod = gpiod
@@ -159,14 +159,14 @@ class BuzzerDriver:
             self._gpiod_line = line
             self.mode = "gpiod"
             self.ok = True
-            print(f"[BuzzerDriver] GPIO (gpiod) aktiv: line={self.gpio_pin} active={'HIGH' if self.gpio_active_high else 'LOW'}")
+            print(f"[BuzzerDriver] GPIO (gpiod) active: line={self.gpio_pin} active={'HIGH' if self.gpio_active_high else 'LOW'}")
         except Exception as e:
-            print("[BuzzerDriver] gpiod init Fehler:", e)
+            print("[BuzzerDriver] gpiod initialisation error:", e)
             self._gpiod = None
             self._gpiod_chip = None
             self._gpiod_line = None
 
-    # ---------- SDK/Demo Helfer ----------
+    # ---------- SDK/Demo helpers ----------
     @staticmethod
     def _call_if(obj, name, *args, **kw):
         if hasattr(obj, name):

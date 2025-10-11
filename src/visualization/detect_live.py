@@ -1,4 +1,10 @@
+#!/usr/bin/env python3
 # detect_live.py
+# Run live object detection on video or camera streams.
+# Author: Daniel Würmli
+
+"""YOLO entrypoint for real-time detection across diverse sources."""
+
 # Run:  python3 detect_live.py
 # Optional: python3 detect_live.py --source 0        # Webcam
 #           python3 detect_live.py --source path/to/video.mp4
@@ -59,7 +65,7 @@ def main():
         cap.release()
         cv2.destroyAllWindows()
     else:
-        # Folder/image/video file – rely on the built-in pipeline
+        # Folder/image/video file - rely on the built-in pipeline
         model.predict(source=src, conf=args.conf, save=True, stream=False)  # Outputs -> runs/detect/predict
         print("Done. Results available under runs/detect/predict/")
 

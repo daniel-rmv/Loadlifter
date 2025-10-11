@@ -182,7 +182,7 @@ def run_stream_server(
 
     app, cam, _ = create_app(src, quality=quality, outw=outw, maxfps=maxfps)
 
-    def _sigint(sig, frm):  # pragma: no cover – runtime helper
+    def _sigint(sig, frm):  # pragma: no cover - runtime helper
         cam.close()
         os._exit(0)
 

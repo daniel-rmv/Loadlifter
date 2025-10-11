@@ -12,12 +12,12 @@ DEFAULT_BASE_MS = 1200
 def ensure_joint(name: str) -> str:
     joint = name.strip()
     if joint not in VALID_JOINTS:
-        raise ValueError(f"Unbekanntes Gelenk: {joint}")
+        raise ValueError(f"Unknown joint: {joint}")
     return joint
 
 
 def call_method(arm, method: str, *args, **kwargs):
     handler = getattr(arm, method, None)
     if handler is None:
-        raise AttributeError(f"ArmSystem hat keine Methode '{method}'")
+        raise AttributeError(f"ArmSystem has no method '{method}'")
     return handler(*args, **kwargs)

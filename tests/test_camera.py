@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
-# camera_stream.py
-# Zeigt einfach nur den Livestream der Kamera.
+# test_camera.py
+# Display a simple camera livestream for manual verification.
 # Author: Daniel Würmli
 
 import cv2
 
 def main():
-    cap = cv2.VideoCapture(0)  # 0 = erste Kamera
+    cap = cv2.VideoCapture(0)  # 0 = default camera index
     if not cap.isOpened():
-        print("Konnte Kamera nicht öffnen!")
+        print("Failed to open camera.")
         return
 
-    print("[INFO] Livestream läuft – drück 'q' zum Beenden.")
+    print("[INFO] Livestream running - press 'q' to quit.")
 
     while True:
         ret, frame = cap.read()
         if not ret:
-            print("[WARN] Kein Frame gelesen...")
+            print("[WARN] Failed to read frame...")
             continue
 
-        cv2.imshow("Kamera Livestream", frame)
+        cv2.imshow("Camera Livestream", frame)
 
-        # Taste prüfen
+        # Check for keypress
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 

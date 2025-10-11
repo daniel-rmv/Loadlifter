@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-# test_chassis.py
-# turn the wheel (ID 1) forward at a speed of 40
+# test.chassis.py
+# Spin wheel (ID 1) forward at speed 40 for manual verification.
 # Author: Daniel Würmli
 
 import time
 from smbus2 import SMBus
 
-I2C_PORT = 1			# bus
-ADDR = 0x34				# adress for enginecontroller
-REG_MOTOR1 = 51         # register of the wheel
-TEST_PULSE = 40         # forward momentum
-DURATION_S = 5.0        # duration in seconds
+I2C_PORT = 1            # I2C bus index
+ADDR = 0x34             # Motor controller address
+REG_MOTOR1 = 51         # Wheel register
+TEST_PULSE = 40         # Forward pulse value
+DURATION_S = 5.0        # Test duration in seconds
 
 def main() -> None:
     print("[INFO] Starting the test (Engine 1).")
