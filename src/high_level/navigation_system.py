@@ -3,7 +3,7 @@
 # High-level navigation controller.
 # Author: Daniel Würmli
 
-import time, json, os
+import time, json, os, math
 
 GREEN  = "\033[92m"
 RED    = "\033[91m"
@@ -70,6 +70,32 @@ class NavigationSystem:
         self.buzzer_start_s = float(self.cfg.get("buzzer_start_s", 3.0))
         self.buzzer_end_s   = float(self.cfg.get("buzzer_end_s", 3.0))
 
+        # Channel alignment tuning (optional)
+        self.channel_center_tol_mm        = float(self.cfg.get("channel_center_tol_mm", 15.0))
+        self.channel_front_center_tol_mm  = float(self.cfg.get("channel_front_center_tol_mm", 20.0))
+        self.channel_orientation_tol_deg  = float(self.cfg.get("channel_orientation_tol_deg", 2.0))
+        self.channel_align_max_iter       = int(self.cfg.get("channel_align_max_iter", 8))
+        self.channel_front_max_mm         = float(self.cfg.get("channel_front_max_mm", 3000.0))
+        self.channel_front_min_points     = int(self.cfg.get("channel_front_min_points", 15))
+        self.channel_front_band_mm        = float(self.cfg.get("channel_front_band_mm", 80.0))
+        self.channel_strafe_kp            = float(self.cfg.get("channel_strafe_kp", 0.06))
+        self.channel_strafe_min_pulse     = int(self.cfg.get("channel_strafe_min_pulse", 8))
+        self.channel_strafe_max_pulse     = int(self.cfg.get("channel_strafe_max_pulse", 20))
+        self.channel_strafe_min_time_s    = float(self.cfg.get("channel_strafe_min_time_s", 0.12))
+        self.channel_strafe_max_time_s    = float(self.cfg.get("channel_strafe_max_time_s", 0.45))
+        self.channel_strafe_time_k        = float(self.cfg.get("channel_strafe_time_k", 0.0012))
+        self.channel_strafe_step_mm       = float(self.cfg.get("channel_strafe_step_mm", 50.0))
+        self.channel_rotation_kp          = float(self.cfg.get("channel_rotation_kp", 0.3))
+        self.channel_rotation_min_deg     = float(self.cfg.get("channel_rotation_min_deg", 0.5))
+        self.channel_rotation_max_deg     = float(self.cfg.get("channel_rotation_max_deg", 3.0))
+        self.channel_rotation_step_deg    = float(self.cfg.get("channel_rotation_step_deg", 1.0))
+        self.channel_orientation_max_steps = int(self.cfg.get("channel_orientation_max_steps", 12))
+        self.channel_orientation_stall_limit = int(self.cfg.get("channel_orientation_stall_limit", 4))
+        self.channel_orientation_improve_tol_deg = float(self.cfg.get("channel_orientation_improve_tol_deg", 0.15))
+        self.channel_strafe_max_steps     = int(self.cfg.get("channel_strafe_max_steps", 8))
+        self.channel_strafe_stall_limit   = int(self.cfg.get("channel_strafe_stall_limit", 4))
+        self.channel_strafe_improve_tol_mm = float(self.cfg.get("channel_strafe_improve_tol_mm", 2.0))
+
     # ---------- Utility ----------
     def hard_zero(self, repeats=5, sleep_s=0.05):
         for _ in range(int(repeats)):
@@ -88,6 +114,44 @@ class NavigationSystem:
 
     def shutdown(self):
         self.hard_zero()
+
+    @staticmethod
+    def _normalize_angle_deg(angle: float) -> float:
+        return (angle + 180.0) % 360.0 - 180.0
+
+    @staticmethod
+    def _within_sector(angle: float, start: float, end: float) -> bool:
+        angle = angle % 360.0
+        start = start % 360.0
+        end = end % 360.0
+        if start <= end:
+            return start <= angle <= end
+        return angle >= start or angle <= end
+
+    @staticmethod
+    def _polar_to_xy(angle_deg: float, distance_mm: float):
+        rad = math.radians(angle_deg)
+        x = distance_mm * math.cos(rad)
+        y = distance_mm * math.sin(rad)
+        return (x, y)
+
+    @staticmethod
+    def _estimate_line_angle(points):
+        if not points or len(points) < 2:
+            return None
+        mx = sum(p[0] for p in points) / len(points)
+        my = sum(p[1] for p in points) / len(points)
+        sxx = syy = sxy = 0.0
+        for x, y in points:
+            dx = x - mx
+            dy = y - my
+            sxx += dx * dx
+            syy += dy * dy
+            sxy += dx * dy
+        if sxx + syy == 0.0:
+            return None
+        angle_rad = 0.5 * math.atan2(2.0 * sxy, sxx - syy)
+        return math.degrees(angle_rad)
 
     # ---------- LiDAR simple reads ----------
     def read_left_mm(self):
@@ -270,6 +334,299 @@ class NavigationSystem:
             else:
                 self.motors.drive_full(forward_mm_s=fwd, strafe_pulses=0, yaw_pulses=yaw)
             time.sleep(0.05)
+
+    def _collect_channel_stats(self, expect_front_wall=True):
+        pts = self.lidar.get_points()
+        if not pts:
+            return None
+        front_pts = []
+        left_pts = []
+        right_pts = []
+        front_left = []
+        front_right = []
+        for ang, dist, _ in pts:
+            if dist is None or dist <= 0:
+                continue
+            if self.channel_front_max_mm and dist > self.channel_front_max_mm:
+                continue
+            ang = ang % 360.0
+            if self._within_sector(ang, 220.0, 320.0):
+                xy = self._polar_to_xy(ang, dist)
+                front_pts.append(xy)
+                if xy[0] <= 0.0:
+                    front_left.append(dist)
+                else:
+                    front_right.append(dist)
+            if self._within_sector(ang, 150.0, 210.0):
+                left_pts.append(self._polar_to_xy(ang, dist))
+            if self._within_sector(ang, 330.0, 30.0):
+                right_pts.append(self._polar_to_xy(ang, dist))
+
+        left_dist = self.read_left_mm()
+        right_dist = self.read_right_mm()
+        diff_lr = None
+        if left_dist is not None and right_dist is not None:
+            diff_lr = left_dist - right_dist
+
+        front_center = None
+        front_band_center = None
+        if front_pts:
+            front_center = sum(x for x, _ in front_pts) / len(front_pts)
+            closest_y = min(y for _, y in front_pts)
+            band = self.channel_front_band_mm
+            band_pts = [x for x, y in front_pts if abs(y - closest_y) <= band]
+            if band_pts:
+                front_band_center = sum(band_pts) / len(band_pts)
+
+        front_angle = self._estimate_line_angle(front_pts) if front_pts else None
+        left_angle = self._estimate_line_angle(left_pts) if left_pts else None
+        right_angle = self._estimate_line_angle(right_pts) if right_pts else None
+
+        orientation_terms = []
+        if front_angle is not None:
+            orientation_terms.append(self._normalize_angle_deg(front_angle))
+        if left_angle is not None:
+            orientation_terms.append(self._normalize_angle_deg(left_angle - 90.0))
+        if right_angle is not None:
+            orientation_terms.append(self._normalize_angle_deg(right_angle + 90.0))
+
+        orientation_error = None
+        if orientation_terms:
+            orientation_error = sum(orientation_terms) / len(orientation_terms)
+
+        front_span_diff = None
+        if front_left and front_right:
+            front_span_diff = (sum(front_left) / len(front_left)) - (sum(front_right) / len(front_right))
+
+        return {
+            "left_dist": left_dist,
+            "right_dist": right_dist,
+            "diff_lr": diff_lr,
+            "front_center": front_center,
+            "front_band_center": front_band_center,
+            "front_angle": front_angle,
+            "left_angle": left_angle,
+            "right_angle": right_angle,
+            "orientation_error": orientation_error,
+            "front_span_diff": front_span_diff,
+            "front_points": len(front_pts),
+            "left_points": len(left_pts),
+            "right_points": len(right_pts),
+        }
+
+    def _strafe_adjust(self, error_mm):
+        if error_mm is None:
+            return False
+        sign = 1 if error_mm > 0 else -1
+        magnitude = abs(float(error_mm))
+        if magnitude < self.channel_center_tol_mm * 0.25:
+            return False
+        step_mm = min(magnitude, self.channel_strafe_step_mm)
+        pulse_raw = step_mm * self.channel_strafe_kp
+        pulse = max(self.channel_strafe_min_pulse,
+                    min(self.channel_strafe_max_pulse, int(round(pulse_raw))))
+        duration = step_mm * self.channel_strafe_time_k
+        duration = max(self.channel_strafe_min_time_s,
+                       min(self.channel_strafe_max_time_s, duration))
+        direction = "left" if sign > 0 else "right"
+        print(BLUE + f"[STRAFE] {direction} pulse={pulse} dur={duration:.2f}s (err={error_mm:.0f}mm)" + RESET)
+        if sign > 0:
+            if hasattr(self.motors, "strafe_left"):
+                self.motors.strafe_left(pulse)
+            else:
+                self.motors.drive_full(0.0, strafe_pulses=+pulse, yaw_pulses=0)
+        else:
+            if hasattr(self.motors, "strafe_right"):
+                self.motors.strafe_right(pulse)
+            else:
+                self.motors.drive_full(0.0, strafe_pulses=-pulse, yaw_pulses=0)
+        time.sleep(duration)
+        self.hard_zero()
+        return True
+
+    def _rotate_adjust(self, error_deg):
+        if error_deg is None:
+            return False
+        sign = 1 if error_deg > 0 else -1
+        magnitude = abs(float(error_deg))
+        if magnitude < self.channel_orientation_tol_deg * 0.5:
+            return False
+        step = min(self.channel_rotation_step_deg,
+                   self.channel_rotation_max_deg,
+                   magnitude)
+        if step < self.channel_rotation_min_deg:
+            step = magnitude
+        if step < self.channel_rotation_min_deg:
+            return False
+        if sign > 0:
+            self.rotate_left_deg(step)
+        else:
+            self.rotate_right_deg(step)
+        time.sleep(0.1)
+        return True
+
+    def align_storage_channel(self, expect_front_wall=True):
+        print(YELLOW + "[ALIGN] Storage channel centering" + RESET)
+        success = False
+        orientation_valid_streak = 0
+        strafe_valid_streak = 0
+        orientation_best = None
+        orientation_stall = 0
+        orientation_attempts = 0
+        orientation_sign_last = None
+        orientation_flip_count = 0
+        strafe_best = None
+        strafe_stall = 0
+        strafe_attempts = 0
+        strafe_last_sign = None
+        strafe_flip_attempted = False
+        last_stats = None
+
+        for _ in range(max(1, self.channel_align_max_iter)):
+            stats = self._collect_channel_stats(expect_front_wall=expect_front_wall)
+            if not stats:
+                print(RED + "[WARN] LiDAR returned no points for channel alignment" + RESET)
+                break
+            last_stats = stats
+            acted = False
+            orientation_valid = False
+            strafe_valid = False
+
+            orientation_error = stats.get("orientation_error")
+            if orientation_error is not None:
+                cur = abs(orientation_error)
+                if cur > self.channel_orientation_tol_deg:
+                    if orientation_best is None or cur < orientation_best - self.channel_orientation_improve_tol_deg:
+                        orientation_best = cur
+                        orientation_stall = 0
+                    else:
+                        orientation_stall += 1
+
+                    rotate_sign = 1 if orientation_error > 0 else -1
+                    if orientation_sign_last is not None and rotate_sign != orientation_sign_last:
+                        orientation_flip_count += 1
+                    else:
+                        orientation_flip_count = 0
+
+                    if orientation_flip_count >= 1:
+                        orientation_attempts = self.channel_orientation_max_steps
+                        orientation_stall = self.channel_orientation_stall_limit
+                    elif (orientation_attempts < self.channel_orientation_max_steps and
+                          orientation_stall < self.channel_orientation_stall_limit):
+                        if self._rotate_adjust(orientation_error):
+                            orientation_attempts += 1
+                            orientation_sign_last = rotate_sign
+                            acted = True
+                    if acted:
+                        orientation_valid = False
+                        strafe_valid = False
+                        continue
+                else:
+                    orientation_best = cur if orientation_best is None else min(orientation_best, cur)
+                    orientation_stall = 0
+                    orientation_sign_last = 1 if orientation_error > 0 else (-1 if orientation_error < 0 else orientation_sign_last)
+                    orientation_valid = True
+
+            diff_lr = stats.get("diff_lr")
+            front_band_center = stats.get("front_band_center")
+            strafe_candidates = []
+            if diff_lr is not None:
+                strafe_candidates.append(("lr", diff_lr, self.channel_center_tol_mm))
+            if (expect_front_wall and
+                    stats.get("front_points", 0) >= self.channel_front_min_points and
+                    front_band_center is not None):
+                strafe_candidates.append(("front", -front_band_center, self.channel_front_center_tol_mm))
+
+            if strafe_candidates:
+                candidate = max(strafe_candidates, key=lambda item: abs(item[1]))
+                source, value, tolerance = candidate
+                cur = abs(value)
+                if cur > tolerance:
+                    improved = (strafe_best is None or cur < strafe_best - self.channel_strafe_improve_tol_mm)
+                    if improved:
+                        strafe_best = cur
+                        strafe_stall = 0
+                        strafe_flip_attempted = False
+                    else:
+                        strafe_stall += 1
+                    if (strafe_attempts < self.channel_strafe_max_steps and
+                        strafe_stall < self.channel_strafe_stall_limit):
+                        target_value = value
+                        sign = 1 if value > 0 else -1
+                        if (not improved and
+                                strafe_last_sign is not None and
+                                sign == strafe_last_sign and
+                                not strafe_flip_attempted):
+                            target_value = -value
+                            sign = -sign
+                            strafe_flip_attempted = True
+                        else:
+                            strafe_flip_attempted = False
+                        if self._strafe_adjust(target_value):
+                            strafe_attempts += 1
+                            strafe_last_sign = sign
+                            acted = True
+                    if acted:
+                        orientation_valid = False
+                        strafe_valid = False
+                        continue
+                else:
+                    strafe_best = cur if strafe_best is None else min(strafe_best, cur)
+                    strafe_stall = 0
+                    strafe_flip_attempted = False
+                    strafe_valid = True
+
+            if orientation_valid:
+                orientation_valid_streak += 1
+            else:
+                orientation_valid_streak = 0
+            if strafe_valid:
+                strafe_valid_streak += 1
+            else:
+                strafe_valid_streak = 0
+
+            if orientation_valid_streak >= 2 and strafe_valid_streak >= 2:
+                success = True
+                break
+
+        if not success and last_stats:
+            orientation_error = last_stats.get("orientation_error")
+            diff_lr = last_stats.get("diff_lr")
+            front_band_center = last_stats.get("front_band_center")
+            orientation_ok = (orientation_error is None or abs(orientation_error) <= self.channel_orientation_tol_deg)
+            sides_ok = (diff_lr is None or abs(diff_lr) <= self.channel_center_tol_mm)
+            front_ok = (front_band_center is None or abs(front_band_center) <= self.channel_front_center_tol_mm)
+            success = orientation_ok and sides_ok and front_ok
+
+        if success:
+            print(GREEN + "[ALIGN] Channel alignment complete" + RESET)
+        else:
+            print(RED + "[WARN] Channel alignment incomplete" + RESET)
+        self.hard_zero()
+        return success
+
+    def straight_forward_until_front(self, front_thresh_mm=540.0):
+        print(YELLOW + f"[MODE] STRAIGHT driving (front stop @ {front_thresh_mm:.0f}mm)" + RESET)
+        while True:
+            df = self.read_front_mm()
+            if df is None:
+                print(RED + "[WARN] LiDAR returned no front distance" + RESET)
+                time.sleep(0.05)
+                continue
+            if df <= front_thresh_mm:
+                print(RED + f"[STOP] front {df:.0f}mm <= {front_thresh_mm:.0f}mm" + RESET)
+                self.motors.stop()
+                self.hard_zero()
+                return
+            if hasattr(self.motors, "drive"):
+                self.motors.drive(forward_mm_s=self.forward, yaw_pulses=0)
+            else:
+                self.motors.drive_full(forward_mm_s=self.forward, strafe_pulses=0, yaw_pulses=0)
+            time.sleep(0.05)
+
+    def channel_align_and_forward(self, front_thresh_mm=540.0, expect_front_wall=True):
+        self.align_storage_channel(expect_front_wall=expect_front_wall)
+        self.straight_forward_until_front(front_thresh_mm=front_thresh_mm)
 
     def wait_for_valid_scan(self, axes=("front",), timeout_s=1.0) -> bool:
         """Block until requested LiDAR axes report values or the timeout elapses."""

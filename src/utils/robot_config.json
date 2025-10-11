@@ -15,7 +15,7 @@
   "Kp_center": 0.06,
   "right_open_mm": 1000.0,
   "extra_forward_after_open_s": 3.5,
-  "extra_forward_after_open_repeat_s": 5.0,
+  "extra_forward_after_open_repeat_s": 4.5,
   "sidekick_initial_forward_s": 5.0,
   "side_dead_end_mm": 120.0,
   "side_rejoin_front_mm": 540.0,

@@ -17,7 +17,6 @@ def run(nav, cfg: dict, buzzer, drv) -> None:
             require_rearm=require_rearm_next or cfg["right_open_require_rearm"],
             rearm_below_mm=cfg.get("right_open_rearm_mm"),
         )
-        require_rearm_next = False
 
         if event == "front_stop":
             time.sleep(0.15)
@@ -48,12 +47,14 @@ def run(nav, cfg: dict, buzzer, drv) -> None:
         nav.timed_forward(cfg["sidekick_initial_forward_s"])
         if not nav.wait_for_valid_scan(("front", "left", "right"), timeout_s=0.5):
             print("[WARN] LiDAR still settling before centered-forward")
+        nav.align_storage_channel(expect_front_wall=True)
         nav.centered_forward_until_front(front_thresh_mm=cfg["side_dead_end_mm"])
 
         nav.rotate_left_deg(180.0)
         time.sleep(0.10)
         if not nav.wait_for_valid_scan(("front", "right"), timeout_s=0.5):
             print("[WARN] LiDAR still settling after 180° turn")
+        nav.align_storage_channel(expect_front_wall=False)
         nav.centered_forward_until_front(front_thresh_mm=cfg["side_rejoin_front_mm"])
 
         nav.timed_forward(cfg["side_final_forward_s"])
