@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # camera_stream.py
 # Zeigt einfach nur den Livestream der Kamera.
+# Author: Daniel Würmli
 
 import cv2
 

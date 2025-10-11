@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # test_chassis.py
 # turn the wheel (ID 1) forward at a speed of 40
+# Author: Daniel Würmli
 
 import time
 from smbus2 import SMBus

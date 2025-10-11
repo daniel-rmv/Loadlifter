@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # test_arm.py
 # opening, closing and opening the gripper again
+# Author: Daniel Würmli
 
 import time
 import serial

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # lidar_test.py
 # Reads frames, parses angle/distance/intensity, checks CRC, prints the first few points.
+# Author: Daniel Würmli
 
 import serial
 import struct
