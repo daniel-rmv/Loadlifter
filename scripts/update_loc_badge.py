@@ -8,8 +8,9 @@ import itertools
 from pathlib import Path
 
 
-TARGET_DIRS = [Path("src"), Path("tests"), Path("scripts")]
-BADGE_PATH = Path("docs/badges/python_loc.svg")
+REPO_ROOT = Path(__file__).resolve().parent.parent
+TARGET_DIRS = [REPO_ROOT / "src", REPO_ROOT / "tests", REPO_ROOT / "scripts"]
+BADGE_PATH = REPO_ROOT / "docs/badges/python_loc.svg"
 LABEL = "Python LOC"
 
 
@@ -68,7 +69,7 @@ def main() -> None:
     count = count_lines(files)
     BADGE_PATH.parent.mkdir(parents=True, exist_ok=True)
     BADGE_PATH.write_text(build_svg(LABEL, str(count)), encoding="utf-8")
-    print(f"LOC badge updated: {count} lines -> {BADGE_PATH}")
+    print(f"LOC badge updated: {count} lines -> {BADGE_PATH.relative_to(REPO_ROOT)}")
 
 
 if __name__ == "__main__":
