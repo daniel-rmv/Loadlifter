@@ -1,0 +1,9 @@
+Flask
+gpiod
+numpy
+opencv-python
+pyserial
+requests
+RPi.GPIO
+smbus2
+ultralytics
