@@ -65,18 +65,18 @@ Python software to control the Hiwonder ArmPi Pro robot.
    
 ---
 
-## Overlay-Client auf dem Mac starten
+## Start the overlay client on the Mac
 
-1. **Repository klonen**
+1. **Clone the repository**
    ```bash
    cd ~
    git clone https://github.com/daniel-rmv/Loadlifter.git
    cd Loadlifter
    ```
 
-2. **Virtuelle Umgebung und Abhängigkeiten**
-   - Python 3 ist auf macOS bereits vorhanden (bei Bedarf über Homebrew aktualisieren).
-   - Virtuelle Umgebung anlegen und Pakete installieren:
+2. **Virtual environment and dependencies**
+   - Python 3 is already available on macOS (update via Homebrew if needed).
+   - Create a virtual environment and install packages:
      ```bash
      python3 -m venv .venv
      source .venv/bin/activate
@@ -84,10 +84,10 @@ Python software to control the Hiwonder ArmPi Pro robot.
      pip install -r requirements.txt
      ```
 
-3. **Overlay-Client ausführen**
-   - Sicherstellen, dass auf dem Pi der MJPEG-Stream läuft (`python -m src.low_level.camera_bridge`).
-   - Overlay-Client starten und die Pi-IP einsetzen:
+3. **Run the overlay client**
+   - Make sure the MJPEG stream is running on the Pi (`python -m src.low_level.camera_bridge`).
+   - Start the overlay client and enter the Pi IP:
      ```bash
      python -m src.visualization.overlay_client --pi <pi-ip>:5000
      ```
-   - Optional das Modell oder Parameter wie `--conf` (Konfidenz) oder `--fps` anpassen. Standardmodell liegt unter `models/best.pt`.
+   - Optionally adjust the model or parameters such as `--conf` (confidence) or `--fps`. The default model is located at `models/best.pt`.
