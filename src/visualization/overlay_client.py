@@ -10,7 +10,13 @@ def main():
     ap = argparse.ArgumentParser(description="Run YOLO overlay on MJPEG stream from Pi")
     default_model = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "models", "best.pt"))
     ap.add_argument("--model", default=default_model)
-    ap.add_argument("--pi", required=True, help="http://192.168.1.156:5000")
+    pi_default = os.getenv("PI_CAMERA_BASE_URL")
+    ap.add_argument(
+        "--pi",
+        default=pi_default,
+        required=pi_default is None,
+        help="Base URL of the Pi MJPEG server (defaults to PI_CAMERA_BASE_URL)",
+    )
     ap.add_argument("--source", type=str, help="Optional explicit MJPEG source URL")
     ap.add_argument("--conf", type=float, default=0.25)
     ap.add_argument("--imgsz", type=int, default=640)

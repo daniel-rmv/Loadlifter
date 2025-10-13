@@ -41,15 +41,24 @@
   "ratio_fast": 1.6,
   "brake_opp": 0.5,
   "brake_time": 0.35,
-  "calib_file": "/home/daniel/Documents/robot_testing/calib.json",
+  "calib_file": "${ROBOT_CALIB_FILE:/home/pi/calib.json}",
   "rotation_scaling": 1.0,
   "rotation_scaling_90": 1.0,
   "rotation_scaling_180": 1.09,
   "defined_route_front_target_mm": 1000.0,
+  "camera": {
+    "enabled": "${CAMERA_ENABLED:0}",
+    "source": "${CAMERA_SOURCE:0}",
+    "port": "${CAMERA_PORT:5000}",
+    "quality": "${CAMERA_QUALITY:70}",
+    "outw": "${CAMERA_OUTW:960}",
+    "maxfps": "${CAMERA_MAXFPS:30}",
+    "host": "${CAMERA_HOST:0.0.0.0}"
+  },
   "lidar_stream": {
     "enabled": true,
-    "port": 5051,
-    "host": "0.0.0.0",
-    "hz": 12.0
+    "port": "${LIDAR_STREAM_PORT:5051}",
+    "host": "${LIDAR_STREAM_HOST:0.0.0.0}",
+    "hz": "${LIDAR_STREAM_HZ:12.0}"
   }
 }

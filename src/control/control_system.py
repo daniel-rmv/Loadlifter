@@ -19,9 +19,36 @@ from .modes.remote import run as run_remote_mode
 from .modes.follow_wall import run as run_follow_wall
 from .modes.follow_route import run as run_follow_route
 from .modes.defined_route_getobjecttop import run as run_defined_route_getobjecttop
+from ..utils.env import expand_env_placeholders, MissingEnvValueError
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_CONFIG_PATH = os.path.normpath(os.path.join(BASE_DIR, "..", "utils", "robot_config.json"))
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
+
+
+def _resolve_config_path(path: str) -> str:
+    """
+    Resolve configuration paths, supporting ~, environment overrides and
+    project-relative fallbacks.
+    """
+    if not path:
+        return path
+    candidate = os.path.expanduser(path)
+    if os.path.isabs(candidate):
+        return candidate
+    # Try current working directory first to preserve legacy invocation
+    cwd_candidate = os.path.abspath(candidate)
+    if os.path.exists(cwd_candidate):
+        return cwd_candidate
+    # Fall back to project root
+    return os.path.join(PROJECT_ROOT, candidate)
+
+
+DEFAULT_CONFIG_PATH = _resolve_config_path(
+    os.environ.get(
+        "ROBOT_CONFIG_PATH",
+        os.path.normpath(os.path.join("src", "utils", "robot_config.json")),
+    )
+)
 
 # ---------- Utils ----------
 def die(msg: str, code: int = 1):
@@ -29,15 +56,20 @@ def die(msg: str, code: int = 1):
     sys.exit(code)
 
 def load_config(path: str) -> dict:
-    if not path or not os.path.exists(path):
+    resolved = _resolve_config_path(path)
+    if not resolved or not os.path.exists(resolved):
         die(f"Configuration file not found: {path}")
     try:
-        with open(path, "r") as f:
+        with open(resolved, "r") as f:
             cfg = json.load(f)
     except Exception as e:
         die(f"Configuration file could not be read: {e}")
     if not isinstance(cfg, dict):
         die("Configuration file does not contain a JSON object.")
+    try:
+        cfg = expand_env_placeholders(cfg)
+    except MissingEnvValueError as exc:
+        die(str(exc))
     return cfg
 
 def set_if_not_none(cfg: dict, key: str, value):
@@ -248,7 +280,11 @@ def main():
     ap.add_argument("--arm_load_joint", type=str)
 
     # --- Config & Navigation Overrides ---
-    ap.add_argument("--config", default=DEFAULT_CONFIG_PATH)
+    ap.add_argument(
+        "--config",
+        default=DEFAULT_CONFIG_PATH,
+        help=f"Path to robot configuration JSON (defaults to ROBOT_CONFIG_PATH or {DEFAULT_CONFIG_PATH})",
+    )
     ap.add_argument("--left_target", type=float, default=None)
     ap.add_argument("--front_stop",  type=float, default=None)
 

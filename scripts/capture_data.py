@@ -11,17 +11,26 @@ Numbering resets to 1 on every start.
 """
 
 import argparse
+import os
 import sys
 import threading
 import time
 from pathlib import Path
 import cv2
+from src.utils.env import load_dotenv
+
+# Ensure local .env is loaded when the script runs standalone.
+load_dotenv()
 
 
 def parse_args():
     ap = argparse.ArgumentParser(description="Press ENTER to save 1.jpg / 1_bg.jpg from HTTP stream")
-    ap.add_argument("--url", type=str, default="http://192.168.1.156:5000/video",
-                    help="HTTP/MJPEG stream URL")
+    ap.add_argument(
+        "--url",
+        type=str,
+        default=os.getenv("CAPTURE_STREAM_URL", "http://127.0.0.1:5000/video"),
+        help="HTTP/MJPEG stream URL (defaults to CAPTURE_STREAM_URL env variable)",
+    )
     ap.add_argument("--out", type=str, default="dataset", help="Output directory (default: dataset)")
     ap.add_argument("--show", action="store_true", help="Optionally show a preview window")
     ap.add_argument("--background", action="store_true",
