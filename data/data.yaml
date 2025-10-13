@@ -1,5 +1,0 @@
-path: /Users/danielwuermli/Desktop/yolo
-train: images/train
-val: images/val
-test: images/test
-names: [green_duplo, grey_duplo, red_duplo, yellow_duplo]
