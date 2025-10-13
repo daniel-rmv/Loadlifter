@@ -1,7 +1,0 @@
-.DS_Store
-.idea/
-.env
-.env.*
-!.env.example
-data/*
-!data/README.txt
