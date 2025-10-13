@@ -1,5 +1,8 @@
 .env
 data/
+models/*
+!models/.gitkeep
+!models/best_public.pt
 __pycache__/
 dist/
 build/
